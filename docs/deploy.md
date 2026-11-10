@@ -16,13 +16,9 @@ change global nginx, PHP-FPM, MariaDB, Redis or firewall config; everything here
 ## nginx
 Server block file: `/etc/nginx/sites-available/maillist.conf` (symlinked in sites-enabled), basic auth via
 `/etc/nginx/maillist.htpasswd` (user `jdss`) as the pre-login gate, `fastcgi_pass` to the 8.4 socket.
-Status: written and `nginx -t` passes, **not yet reloaded and no certificate yet**. To go live:
-```
-sudo mkdir -p /var/www/maillist/public   # exists
-sudo systemctl reload nginx
-sudo certbot --nginx -d app.kwikque.com --redirect
-```
-Once app login is confirmed working, remove the `auth_basic` lines from the server block and reload.
+Status: **live with TLS** (certbot issued 2026-11-10, expires 2027-02-08, auto-renewed by `certbot.timer`).
+HTTP redirects to HTTPS. The basic-auth gate stays on until app login is confirmed working; then remove the
+`auth_basic` lines from the server block, `sudo nginx -t`, `sudo systemctl reload nginx`.
 
 ## Processes
 - Horizon: `maillist-horizon.service` (source copy in `deploy/`). Install:

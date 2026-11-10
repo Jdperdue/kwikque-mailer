@@ -34,8 +34,6 @@ Horizon supervisors: `sends`, `webhooks`, `imports` (+ `default`). Redis DB 3 (q
 
 ## Open questions for David (do not invent)
 - Rene Bates local timezone (seeded as UTC for now; used for scheduling per tenant).
-- First TLS issuance for app.kwikque.com: certbot/nginx reload was blocked by the permission classifier; needs
-  an explicit allow or a manual run (see docs/deploy.md).
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
 - Items from PLAN section 9 (Spectrum, legacy schema, unsubscribe link targets, sending subdomain and DNS owner,
   Mailgun limits/plan) remain open and block later phases, not Phase 0.
