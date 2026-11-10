@@ -57,15 +57,21 @@ new #[Layout('layouts.app')] class extends Component
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <table class="w-full text-sm text-left">
                     <thead class="text-gray-500">
-                        <tr><th class="py-2">Name</th><th>Slug</th><th>Status</th><th>Sending domain</th><th>Domain</th></tr>
+                        <tr>
+                            <th class="py-2 pe-4 text-start font-medium">Name</th>
+                            <th class="pe-4 text-start font-medium">Slug</th>
+                            <th class="pe-4 text-start font-medium">Status</th>
+                            <th class="pe-4 text-start font-medium">Sending domain</th>
+                            <th class="text-start font-medium">Domain</th>
+                        </tr>
                     </thead>
                     <tbody>
                         @foreach ($tenants as $t)
                             <tr class="border-t" wire:key="tenant-{{ $t->id }}">
-                                <td class="py-2">{{ $t->name }}</td>
-                                <td>{{ $t->slug }}</td>
-                                <td>{{ $t->status }}</td>
-                                <td>{{ $t->mailgun_domain ?? '—' }}</td>
+                                <td class="py-2 pe-4">{{ $t->name }}</td>
+                                <td class="pe-4">{{ $t->slug }}</td>
+                                <td class="pe-4">{{ $t->status }}</td>
+                                <td class="pe-4">{{ $t->mailgun_domain ?? '—' }}</td>
                                 <td>{{ $t->domain_status }}</td>
                             </tr>
                         @endforeach
