@@ -32,8 +32,14 @@ Horizon supervisors: `sends`, `webhooks`, `imports` (+ `default`). Redis DB 3 (q
 ### D5. strict_types enforced through Pint
 `pint.json` turns on `declare_strict_types`; an arch test checks `App`.
 
+### D6. Rene Bates timezone (2026-11-10)
+David said "CST"; stored as the IANA zone `America/Chicago` (Central, observes DST) so scheduled send times
+stay at the same local time all year. Per-tenant `timezone` drives scheduling.
+
+### D7. Basic-auth gate stays on app.kwikque.com for now (David, 2026-11-10)
+Do not remove it from nginx until David says so.
+
 ## Open questions for David (do not invent)
-- Rene Bates local timezone (seeded as UTC for now; used for scheduling per tenant).
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
 - Items from PLAN section 9 (Spectrum, legacy schema, unsubscribe link targets, sending subdomain and DNS owner,
   Mailgun limits/plan) remain open and block later phases, not Phase 0.

@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Rene Bates Auctioneers',
                 'from_name' => 'Rene Bates Auctioneers',
-                'timezone' => 'UTC', // TODO(David): confirm Rene Bates local timezone (docs/decisions.md)
+                'timezone' => 'America/Chicago',
             ],
         );
 
