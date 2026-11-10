@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
 use Livewire\Volt\Volt;
 
@@ -44,7 +46,7 @@ test('users can not authenticate with invalid password', function () {
 });
 
 test('navigation menu can be rendered', function () {
-    $user = User::factory()->create();
+    $user = makeMember(makeTenant());
 
     $this->actingAs($user);
 

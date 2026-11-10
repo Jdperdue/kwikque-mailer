@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,4 +49,36 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/*
+| Tenancy helpers
+*/
+
+use App\Enums\TenantRole;
+use App\Models\Tenant;
+use App\Models\User;
+use App\Support\Tenancy\TenantContext;
+
+function makeTenant(array $attributes = []): Tenant
+{
+    return Tenant::factory()->create($attributes);
+}
+
+function makeMember(Tenant $tenant, TenantRole $role = TenantRole::Admin): User
+{
+    $user = User::factory()->create();
+    $user->tenants()->attach($tenant, ['role' => $role->value]);
+
+    return $user;
+}
+
+function makeSuperAdmin(): User
+{
+    return User::factory()->create(['is_super_admin' => true]);
+}
+
+function inTenant(Tenant $tenant, Closure $callback): mixed
+{
+    return app(TenantContext::class)->run($tenant, $callback);
 }

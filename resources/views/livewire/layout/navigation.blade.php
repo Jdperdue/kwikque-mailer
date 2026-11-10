@@ -33,8 +33,30 @@ new class extends Component
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    @if (auth()->user()->is_super_admin)
+                        <x-nav-link :href="route('platform.tenants')" :active="request()->routeIs('platform.tenants')" wire:navigate>
+                            {{ __('Tenants') }}
+                        </x-nav-link>
+                    @endif
                 </div>
             </div>
+
+            <!-- Tenant switcher -->
+            @php($switchable = auth()->user()->accessibleTenants())
+            @if ($switchable->count() > 1 || auth()->user()->is_super_admin)
+                <form method="POST" action="{{ route('tenant.switch') }}" class="hidden sm:flex sm:items-center sm:ms-6">
+                    @csrf
+                    <select name="tenant_id" onchange="this.form.submit()" aria-label="{{ __('Tenant') }}"
+                        class="border-gray-300 rounded-md shadow-sm text-sm">
+                        @unless (app(\App\Support\Tenancy\TenantContext::class)->has())
+                            <option value="" selected disabled>{{ __('Select tenant…') }}</option>
+                        @endunless
+                        @foreach ($switchable as $t)
+                            <option value="{{ $t->id }}" @selected($t->id === app(\App\Support\Tenancy\TenantContext::class)->id())>{{ $t->name }}</option>
+                        @endforeach
+                    </select>
+                </form>
+            @endif
 
             <!-- Settings Dropdown -->
             <div class="hidden sm:flex sm:items-center sm:ms-6">

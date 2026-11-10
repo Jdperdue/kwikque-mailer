@@ -1,0 +1,19 @@
+[Unit]
+Description=KwikQue (maillist) Laravel Horizon
+After=network.target redis-server.service mariadb.service
+Wants=redis-server.service mariadb.service
+
+[Service]
+User=ubuntu
+Group=www-data
+UMask=0002
+WorkingDirectory=/var/www/maillist
+ExecStart=/usr/bin/php8.4 artisan horizon
+ExecReload=/usr/bin/php8.4 artisan horizon:terminate
+Restart=always
+RestartSec=5
+TimeoutStopSec=300
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
