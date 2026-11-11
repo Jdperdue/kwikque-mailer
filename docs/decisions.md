@@ -39,6 +39,28 @@ stay at the same local time all year. Per-tenant `timezone` drives scheduling.
 ### D7. Basic-auth gate stays on app.kwikque.com for now (David, 2026-11-10)
 Do not remove it from nginx until David says so.
 
+### D8. Opt-out model (Phase 1)
+Unsubscribes, manual blocks, bounces and complaints live in a permanent per-tenant `suppressions` row, keyed by
+tenant + email, written only through `App\Services\OptOuts`. The recipient row carries mirrored flags
+(`unsubscribed_at`, `suppressed_at`, `subscribed`). Deleting a recipient never deletes its suppression, so a
+re-import or re-add of that address comes back opted out. The importer also checks the global
+`platform_suppressions` table (hard bounces/complaints; intentionally not tenant-scoped, system-written only).
+Operators can opt an address out but cannot re-subscribe one here: re-subscription needs a consent flow
+(Phase 2 double opt-in). Open question: whether an admin may lift a manual suppression.
+
+### D9. Import semantics
+- One importer for CSV, manual add and paste-a-list (`RecipientImporter`), so protections are identical.
+- Counts: created (new rows), updated (existing row whose name/external_id or group membership changed),
+  unchanged, invalid, duplicate (same address twice in the file; first kept), and "kept opted out", an overlay
+  count of rows that stay opted out whatever the file says. Re-importing a file yields created=0, updated=0.
+- Name/external_id from a file overwrite only when the file provides a value. Source, consent fields and the
+  subscribed flag of existing recipients are never changed by an import.
+- New recipients from a file get `consent_source = import:csv` and no `consent_at` (consent date unknown).
+- Editing a recipient's email is not supported (remove and re-add), to avoid moving opt-outs between addresses.
+- CSV: UTF-8 (BOM tolerated), comma/semicolon/tab, header row; columns `email` (required), `name` or
+  `first_name`+`last_name`, `external_id`. Max 10 MB. Errors are capped at 500 rows in the report; counts are exact.
+- `LegacyDbSource` is not built: waiting for David's legacy schema/queries (PLAN section 9).
+
 ## Open questions for David (do not invent)
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
 - Items from PLAN section 9 (Spectrum, legacy schema, unsubscribe link targets, sending subdomain and DNS owner,

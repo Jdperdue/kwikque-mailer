@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Enums\TenantRole;
+use App\Models\AudienceGroup;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class DatabaseSeeder extends Seeder
@@ -29,6 +32,12 @@ class DatabaseSeeder extends Seeder
                 'timezone' => 'America/Chicago',
             ],
         );
+
+        app(TenantContext::class)->run($tenant, function (): void {
+            foreach (['Bidders', 'Clients', 'Subscribers'] as $name) {
+                AudienceGroup::firstOrCreate(['slug' => Str::slug($name)], ['name' => $name]);
+            }
+        });
 
         $admin = User::firstOrCreate(
             ['email' => $email],

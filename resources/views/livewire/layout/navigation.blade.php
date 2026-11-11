@@ -33,6 +33,14 @@ new class extends Component
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    @if (app(\App\Support\Tenancy\TenantContext::class)->has())
+                        <x-nav-link :href="route('audience')" :active="request()->routeIs('audience*')" wire:navigate>
+                            {{ __('Audience') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('content')" :active="request()->routeIs('content')" wire:navigate>
+                            {{ __('Content') }}
+                        </x-nav-link>
+                    @endif
                     @if (auth()->user()->is_super_admin)
                         <x-nav-link :href="route('platform.tenants')" :active="request()->routeIs('platform.tenants')" wire:navigate>
                             {{ __('Tenants') }}

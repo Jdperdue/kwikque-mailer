@@ -33,6 +33,13 @@ class Recipient extends Model
             ->withTimestamps();
     }
 
+    public function scopeMailable($query)
+    {
+        return $query->where('recipients.subscribed', true)
+            ->whereNull('recipients.unsubscribed_at')
+            ->whereNull('recipients.suppressed_at');
+    }
+
     public function isOptedOut(): bool
     {
         return $this->unsubscribed_at !== null || $this->suppressed_at !== null;

@@ -29,6 +29,11 @@ HTTP redirects to HTTPS. The basic-auth gate stays on until app login is confirm
 ## Gotchas
 - `.env` is chmod 600 owned by `ubuntu`; PHP-FPM must run as `ubuntu` (the `maillist` pool). Under the default
   `www-data` pool the app cannot read `.env` and fails with "No application encryption key has been specified".
+- Long-running processes keep the code and autoloader they started with. After ANY deploy or
+  `composer require/install`, run `php artisan horizon:terminate` (systemd restarts it). Forgetting this
+  showed up as `Class "League\Csv\Reader" not found` in queued jobs.
+- Upload limits: `upload_max_filesize=12M`/`post_max_size=14M` in the `maillist` FPM pool and
+  `client_max_body_size 14m` in the nginx block (CSV imports; the app validates max 10 MB).
 - `APP_ENV=production`, `APP_DEBUG=false` on this public host.
 - Do not run `php artisan` as root or www-data: it would create root/www-data-owned files in `storage/`.
 

@@ -82,3 +82,10 @@ function inTenant(Tenant $tenant, Closure $callback): mixed
 {
     return app(TenantContext::class)->run($tenant, $callback);
 }
+
+/** For Volt::test(): components are mounted without HTTP middleware, so set the context by hand. */
+function actingInTenant(User $user, Tenant $tenant): void
+{
+    test()->actingAs($user);
+    app(TenantContext::class)->set($tenant);
+}
