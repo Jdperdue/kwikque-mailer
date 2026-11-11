@@ -11,6 +11,9 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                brand: { navy: '#0B1F3A', amber: '#FFB400', bg: '#F7F9FC', muted: '#5B6B80' },
+            },
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
