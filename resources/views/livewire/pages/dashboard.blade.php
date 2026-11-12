@@ -33,6 +33,15 @@ new #[Layout('layouts.app')] class extends Component
         $this->message = "Group \"{$name}\" added.";
     }
 
+    /** Public groups are the only ones a visitor can pick on the subscribe form or change on their preferences page. */
+    public function togglePublic(int $id): void
+    {
+        Gate::authorize('manage-audience');
+        $g = AudienceGroup::findOrFail($id);
+        $g->update(['is_public' => ! $g->is_public]);
+        Audit::record('group.public_toggled', $g, ['is_public' => $g->is_public]);
+    }
+
     public function startRenameGroup(int $id): void
     {
         $g = AudienceGroup::findOrFail($id);
@@ -164,11 +173,12 @@ new #[Layout('layouts.app')] class extends Component
                                         <button wire:click="cancelRenameGroup" class="text-gray-500 hover:underline">Cancel</button>
                                     </td>
                                 @else
-                                    <td class="py-2 pe-4">{{ $g->name }}</td>
+                                    <td class="py-2 pe-4">{{ $g->name }}@if ($g->is_public) <span class="text-xs text-gray-500">(public)</span>@endif</td>
                                     <td class="pe-4">{{ number_format($g->total) }}</td>
                                     <td class="pe-4">{{ number_format($g->mailable) }}</td>
                                     <td class="whitespace-nowrap space-x-3">
                                         @if ($canManage)
+                                            <button wire:click="togglePublic({{ $g->id }})" class="text-indigo-600 hover:underline">{{ $g->is_public ? 'Public: on' : 'Public: off' }}</button>
                                             <button wire:click="startRenameGroup({{ $g->id }})" class="text-indigo-600 hover:underline">Rename</button>
                                             @if ($g->total === 0)
                                                 <button wire:click="deleteGroup({{ $g->id }})" wire:confirm="Delete the empty group &quot;{{ $g->name }}&quot;?" class="text-red-600 hover:underline">Delete</button>

@@ -15,6 +15,11 @@ class AudienceGroup extends Model
 
     protected $guarded = ['tenant_id'];
 
+    protected function casts(): array
+    {
+        return ['is_public' => 'boolean'];
+    }
+
     public function recipients(): BelongsToMany
     {
         return $this->belongsToMany(Recipient::class, 'recipient_group')

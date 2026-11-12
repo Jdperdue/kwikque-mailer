@@ -24,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
             before: SubstituteBindings::class,
             prepend: ResolveTenant::class,
         );
+        // RFC 8058 one-click unsubscribe is POSTed by mail providers without a CSRF token; the signed token is the credential.
+        $middleware->validateCsrfTokens(except: ['u/*']);
         $middleware->alias([
             'tenant.required' => RequireTenant::class,
             'role' => RequireRole::class,

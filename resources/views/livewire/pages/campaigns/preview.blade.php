@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\Campaign;
+use App\Models\Recipient;
+use App\Services\PublicLinks;
 use App\Services\CampaignRenderer;
 use App\Support\Audit;
 use App\Support\RenderedMessage;
@@ -28,12 +30,12 @@ new #[Layout('layouts.app')] class extends Component
         $this->campaignId = $campaign->id;
     }
 
-    private function buildMessage(): RenderedMessage
+    private function buildMessage(string $unsubscribeUrl = '#'): RenderedMessage
     {
         $tenant = app(TenantContext::class)->current();
 
-        // Preview links are inert: real, signed unsubscribe links arrive with the public pages.
-        return app(CampaignRenderer::class)->render(Campaign::findOrFail($this->campaignId), $tenant, '#');
+        // The on-screen preview is inert ('#'); a test send uses a real signed link when the address is a recipient.
+        return app(CampaignRenderer::class)->render(Campaign::findOrFail($this->campaignId), $tenant, $unsubscribeUrl);
     }
 
     public function sendTest(): void
@@ -50,14 +52,21 @@ new #[Layout('layouts.app')] class extends Component
         }
 
         $sent = RateLimiter::attempt('campaign-test:'.auth()->id(), 20, function () use ($tenant): void {
-            $m = $this->buildMessage();
+            $to = mb_strtolower(trim($this->testTo));
+            $recipient = Recipient::where('email', $to)->first();
+            $links = app(PublicLinks::class);
+            $url = $recipient !== null ? $links->unsubscribeUrl($recipient) : null;
+            $m = $this->buildMessage($url ?? '#');
             Mail::send(
                 ['html' => new HtmlString($m->html), 'text' => new HtmlString($m->text)],
                 [],
-                function ($msg) use ($tenant, $m): void {
+                function ($msg) use ($tenant, $m, $url, $links): void {
                     $msg->to(mb_strtolower(trim($this->testTo)))
                         ->from($tenant->from_address, $tenant->from_name ?: $tenant->name)
                         ->subject('[TEST] '.$m->subject);
+                    foreach ($url !== null ? $links->listUnsubscribeHeaders($url) : [] as $name => $value) {
+                        $msg->getHeaders()->addTextHeader($name, $value);
+                    }
                     if (trim((string) $tenant->reply_to) !== '') {
                         $msg->replyTo($tenant->reply_to);
                     }

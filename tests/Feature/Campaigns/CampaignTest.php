@@ -7,6 +7,7 @@ use App\Models\AudienceGroup;
 use App\Models\AuditLog;
 use App\Models\Campaign;
 use App\Models\ContentItem;
+use App\Models\Recipient;
 use App\Services\CampaignRenderer;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
@@ -255,4 +256,18 @@ it('lets only tenant admins edit settings and keeps them per tenant', function (
     expect($a->from_address)->toBe('new@example.com')->and($a->postal_address)->toBe('2 Side St')
         ->and($a->branding)->toBe(['logo_url' => 'https://example.com/l.png', 'accent_color' => '#112233'])
         ->and($this->b->fresh()->from_address)->toBeNull();
+});
+
+it('test send carries a real signed unsubscribe link and RFC 8058 headers when the address is a recipient', function () {
+    inTenant($this->a, fn () => Recipient::create(['email' => 'me@example.com']));
+    actingInTenant($this->operator, $this->a);
+    $c = makeCampaign();
+
+    Volt::test('pages.campaigns.preview', ['campaign' => $c])->set('testTo', 'me@example.com')->call('sendTest')->assertHasNoErrors();
+
+    $sent = Mail::mailer('array')->getSymfonyTransport()->messages()->last()->getOriginalMessage();
+    $headers = $sent->getHeaders();
+    expect($headers->getHeaderBody('List-Unsubscribe'))->toStartWith('<'.url('/u/'))
+        ->and($headers->getHeaderBody('List-Unsubscribe-Post'))->toBe('List-Unsubscribe=One-Click');
+    expect($sent->getHtmlBody())->toContain(url('/u/'));
 });

@@ -2,11 +2,24 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Public\PublicPagesController;
 use App\Http\Controllers\TenantSwitchController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
 Route::redirect('/', '/login');
+
+// Public per-tenant pages: no login; the signed token (or, for subscribe, the slug) identifies the tenant.
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('u/{token}', [PublicPagesController::class, 'unsubscribeShow'])->name('public.unsubscribe');
+    Route::post('u/{token}', [PublicPagesController::class, 'unsubscribe'])->name('public.unsubscribe.do');
+    Route::get('c/{token}', [PublicPagesController::class, 'confirmShow'])->name('public.confirm');
+    Route::post('c/{token}', [PublicPagesController::class, 'confirm'])->name('public.confirm.do');
+    Route::get('p/{token}', [PublicPagesController::class, 'preferencesShow'])->name('public.preferences');
+    Route::post('p/{token}', [PublicPagesController::class, 'preferences'])->name('public.preferences.do');
+    Route::get('s/{slug}', [PublicPagesController::class, 'subscribeShow'])->name('public.subscribe');
+    Route::post('s/{slug}', [PublicPagesController::class, 'subscribe'])->middleware('throttle:10,1')->name('public.subscribe.do');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('dashboard', 'pages.dashboard')->middleware('tenant.required')->name('dashboard');

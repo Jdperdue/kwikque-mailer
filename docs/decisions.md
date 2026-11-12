@@ -139,6 +139,29 @@ the Mailgun API, not SMTP.
   and sending domain stay platform-admin controlled.
 - Open: a "send test to myself" default, saved test recipients, a rendered-thumbnail in the list.
 
+### D15. Phase 2b: signed tokens and public pages
+- `TokenService`: `base64url(json{t:tenant,r:recipient,p:purpose,e:expiry,x:extra}).HMAC-SHA256`, key derived from
+  APP_KEY. Purposes `unsubscribe`, `preferences` (no expiry: old emails must keep working) and `confirm` (7 days).
+  The tenant is taken from the verified token, never the URL; the recipient is then loaded through the tenant scope,
+  so a validly signed token with another tenant's recipient id changes nothing.
+- Public routes (no login, throttled): `/u/{token}` unsubscribe (GET shows a button; POST unsubscribes and also serves
+  RFC 8058 one-click, CSRF-exempt because the signed token is the credential), `/c/{token}` confirm (POST required so
+  mail scanners prefetching the link cannot confirm), `/p/{token}` preferences, `/s/{slug}` subscribe (honeypot, 10/min
+  per IP, 3 confirmation emails per address per hour). Unsubscribing goes through `OptOuts` and is idempotent.
+- Subscribe always answers "check your email". A confirmation is not sent (silently) if the address is on
+  platform_suppressions, has a non-unsubscribe tenant block (bounce, complaint, manual, import), or is already
+  subscribed. A person who unsubscribed may re-subscribe by confirming; confirm re-checks the blocks. Imports still
+  never re-subscribe anyone.
+- New columns: `recipients.pending_confirmation`, `audience_groups.is_public` (default false; toggled on the dashboard).
+  Visitors can only join or leave public groups; internal group memberships are never touched.
+- Confirmation mail is `ConfirmSubscription`, sent over app SMTP (Mailpit for now) in the tenant's name.
+- `PublicLinks` builds the unsubscribe/preferences URLs and the List-Unsubscribe(-Post) headers. Test sends now use a
+  real link and headers when the test address is already a recipient; otherwise the inert `#` and no headers.
+  Phase 3 real sends must use `PublicLinks` per recipient (not yet wired to the renderer's Mailgun placeholder).
+- Open: the public host is `app.kwikque.com` (APP_URL) until the legacy link-target question (PLAN section 9) is
+  answered; no link to the preferences page is in campaign footers yet; no embeddable-form snippet yet (the `/s/{slug}`
+  form posts same-origin only); tenant admin UI for the public-group toggle is on the dashboard group table.
+
 ## Open questions for David (do not invent)
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
 - Items from PLAN section 9 (Spectrum, legacy schema, unsubscribe link targets, sending subdomain and DNS owner,

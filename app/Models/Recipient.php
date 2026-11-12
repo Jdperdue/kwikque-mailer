@@ -20,6 +20,7 @@ class Recipient extends Model
     {
         return [
             'subscribed' => 'boolean',
+            'pending_confirmation' => 'boolean',
             'unsubscribed_at' => 'datetime',
             'suppressed_at' => 'datetime',
             'consent_at' => 'datetime',
