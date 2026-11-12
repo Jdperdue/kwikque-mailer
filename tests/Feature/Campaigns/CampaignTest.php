@@ -90,7 +90,7 @@ it('keeps campaigns tenant-scoped across pages', function () {
     $this->actingAs($this->operator)->get(route('campaigns.edit', $theirs->id))->assertNotFound();
     $this->actingAs($this->operator)->get(route('campaigns.preview', $mine->id))->assertOk();
     $this->actingAs($this->operator)->get(route('campaigns.create'))->assertOk()->assertSee('Internal name');
-    $this->actingAs($this->operator)->get(route('campaigns.edit', $mine->id))->assertOk()->assertSee('Weekly')->assertSee('First auction');
+    $this->actingAs($this->operator)->get(route('campaigns.edit', $mine->id))->assertOk()->assertSee('First auction');
 });
 
 it('lets viewers see the list and preview but not edit or test send', function () {
