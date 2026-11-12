@@ -10,7 +10,9 @@
         @error('email')<div class="err">{{ $message }}</div>@enderror
         <label for="name">Name (optional)</label>
         <input id="name" type="text" name="name" value="{{ old('name') }}" maxlength="120">
-        @if ($groups->isNotEmpty())
+        @if ($fixed)
+            <input type="hidden" name="groups[]" value="{{ $fixed->id }}">
+        @elseif ($groups->isNotEmpty())
             <label>I'm interested in</label>
             @foreach ($groups as $g)
                 <div class="check"><input type="checkbox" id="g{{ $g->id }}" name="groups[]" value="{{ $g->id }}"><label for="g{{ $g->id }}" style="margin:0">{{ $g->name }}</label></div>

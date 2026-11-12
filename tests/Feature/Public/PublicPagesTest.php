@@ -185,3 +185,17 @@ it('lets a recipient change only public group memberships', function () {
 
     expect(inTenant($this->a, fn () => $this->ra->groups()->pluck('audience_groups.id')->all()))->toBe([$this->internal->id]);
 });
+
+it('pre-selects a public group from ?group= and hides the picker; ignores non-public or unknown slugs', function () {
+    Mail::fake();
+    $this->get('/s/tenant-a?group=subscribers')->assertOk()
+        ->assertSee('name="groups[]" value="'.$this->pub->id.'"', false)->assertDontSee('I\'m interested in', false);
+    $this->get('/s/tenant-a?group=bidders')->assertOk()->assertSee('interested in', false);
+    $this->get('/s/tenant-a?group[]=x')->assertOk();
+
+    $this->post('/s/tenant-a', ['email' => 'embed@example.com', 'groups' => [$this->pub->id]])->assertOk();
+    $r = inTenant($this->a, fn () => Recipient::where('email', 'embed@example.com')->first());
+    $this->post(route('public.confirm.do', $this->tokens->forRecipient($r, TokenService::CONFIRM, now()->addDay(), ['g' => [$this->pub->id]])))->assertOk();
+
+    expect(inTenant($this->a, fn () => $r->groups()->pluck('audience_groups.slug')->all()))->toBe(['subscribers']);
+});

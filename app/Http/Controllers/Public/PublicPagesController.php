@@ -53,15 +53,20 @@ class PublicPagesController extends Controller
 
     // ---- Subscribe (double opt-in) -----------------------------------------------------------------------
 
-    public function subscribeShow(string $slug)
+    /**
+     * `?group=<slug>` pre-selects one public group and hides the picker, so a link or form on the tenant's own site
+     * can sign people up to that group. Still double opt-in. An unknown or non-public slug falls back to the picker.
+     */
+    public function subscribeShow(Request $request, string $slug)
     {
         $tenant = $this->tenantBySlug($slug);
 
-        return $this->context->run($tenant, fn () => view('public.subscribe', [
-            'tenant' => $tenant,
-            'groups' => AudienceGroup::where('is_public', true)->orderBy('name')->get(),
-            'sent' => false,
-        ]));
+        return $this->context->run($tenant, function () use ($request, $tenant) {
+            $public = AudienceGroup::where('is_public', true)->orderBy('name')->get();
+            $fixed = is_string($request->query('group')) ? $public->firstWhere('slug', $request->query('group')) : null;
+
+            return view('public.subscribe', ['tenant' => $tenant, 'groups' => $public, 'fixed' => $fixed, 'sent' => false]);
+        });
     }
 
     public function subscribe(Request $request, string $slug)
@@ -70,7 +75,7 @@ class PublicPagesController extends Controller
 
         // Honeypot: bots fill the hidden field; answer exactly like success.
         if ($request->filled('website')) {
-            return $this->context->run($tenant, fn () => view('public.subscribe', ['tenant' => $tenant, 'groups' => collect(), 'sent' => true]));
+            return $this->context->run($tenant, fn () => view('public.subscribe', ['tenant' => $tenant, 'groups' => collect(), 'fixed' => null, 'sent' => true]));
         }
 
         $data = $request->validate([
@@ -85,7 +90,7 @@ class PublicPagesController extends Controller
             // Same response whatever happens below, so the form never reveals who is on the list.
             $this->requestConfirmation($tenant, $email, trim((string) ($data['name'] ?? '')), (array) ($data['groups'] ?? []));
 
-            return view('public.subscribe', ['tenant' => $tenant, 'groups' => collect(), 'sent' => true]);
+            return view('public.subscribe', ['tenant' => $tenant, 'groups' => collect(), 'fixed' => null, 'sent' => true]);
         });
     }
 

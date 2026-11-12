@@ -158,6 +158,8 @@ the Mailgun API, not SMTP.
 - `PublicLinks` builds the unsubscribe/preferences URLs and the List-Unsubscribe(-Post) headers. Test sends now use a
   real link and headers when the test address is already a recipient; otherwise the inert `#` and no headers.
   Phase 3 real sends must use `PublicLinks` per recipient (not yet wired to the renderer's Mailgun placeholder).
+- `/s/{slug}?group={group-slug}` pre-selects that public group and hides the picker, for links/buttons on the tenant's
+  own site. Still double opt-in; unknown or non-public slugs fall back to the picker.
 - Open: the public host is `app.kwikque.com` (APP_URL) until the legacy link-target question (PLAN section 9) is
   answered; no link to the preferences page is in campaign footers yet; no embeddable-form snippet yet (the `/s/{slug}`
   form posts same-origin only); tenant admin UI for the public-group toggle is on the dashboard group table.
