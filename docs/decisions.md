@@ -83,7 +83,10 @@ Bulk opt-outs from a CSV (`email`, optional `reason`, `note`) or one-address-per
   The previewed file and reason are server-locked, so the browser cannot swap them between preview and apply.
 - Applied by a queued `ProcessSuppressionImport` (tenant-restored), recorded as an `import_runs` row with
   `source = suppressions` and `options.reason`. Existing suppressions are never changed. Audited.
-- Still open: no way to lift a suppression in the UI (see D8).
+- Lifting (David, 2026-11-12): tenant admins only (`lift-suppressions` gate; operators cannot). Needs a written
+  reason (audited with the previous reason) and a confirm dialog; unsubscribe/complaint blocks show a consent
+  warning. It deletes the tenant suppression and re-enables the recipient row, but never touches
+  `platform_suppressions`, so a platform-wide bounce/complaint keeps blocking sends.
 
 ## Open questions for David (do not invent)
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.

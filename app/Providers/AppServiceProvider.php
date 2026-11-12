@@ -32,5 +32,12 @@ class AppServiceProvider extends ServiceProvider
 
             return $context->has() && ($user->roleIn($context->current())?->atLeast(TenantRole::Operator) ?? false);
         });
+
+        // Lifting an opt-out re-enables mail to someone who was blocked: tenant admins only.
+        Gate::define('lift-suppressions', function (User $user): bool {
+            $context = app(TenantContext::class);
+
+            return $context->has() && ($user->roleIn($context->current())?->atLeast(TenantRole::Admin) ?? false);
+        });
     }
 }

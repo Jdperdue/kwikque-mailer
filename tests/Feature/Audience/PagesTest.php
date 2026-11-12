@@ -362,3 +362,41 @@ it('reports an unreadable or empty suppression file instead of failing', functio
 
     Volt::test('pages.audience.suppressions')->set('file', supFile(''))->set('reason', 'manual')->call('previewImport')->assertHasErrors('file');
 });
+
+it('lets only a tenant admin lift a suppression, with a reason, and never the platform list', function () {
+    $admin = makeMember($this->a, TenantRole::Admin);
+    inTenant($this->a, function () {
+        Recipient::create(['email' => 'back@example.com']);
+        app(OptOuts::class)->suppress('back@example.com', 'unsubscribe');
+        app(OptOuts::class)->suppress('stay@example.com', 'manual');
+    });
+    inTenant($this->b, fn () => app(OptOuts::class)->suppress('back@example.com', 'manual'));
+    PlatformSuppression::create(['email' => 'stay@example.com', 'reason' => 'bounce']);
+    $id = inTenant($this->a, fn () => Suppression::where('email', 'back@example.com')->value('id'));
+    $otherId = inTenant($this->b, fn () => Suppression::where('email', 'back@example.com')->value('id'));
+
+    // Operators cannot.
+    actingInTenant($this->operator, $this->a);
+    Volt::test('pages.audience.suppressions')->call('startLift', $id)->assertForbidden();
+
+    // Admin: a reason is required, then it is lifted and audited.
+    actingInTenant($admin, $this->a);
+    $c = Volt::test('pages.audience.suppressions')->call('startLift', $id)->call('lift')->assertHasErrors('liftWhy');
+    expect(inTenant($this->a, fn () => Suppression::whereKey($id)->exists()))->toBeTrue();
+
+    $c->set('liftWhy', 'Re-subscribed by phone')->call('lift')->assertHasNoErrors();
+    $r = inTenant($this->a, fn () => Recipient::where('email', 'back@example.com')->first());
+    expect(inTenant($this->a, fn () => Suppression::whereKey($id)->exists()))->toBeFalse()
+        ->and($r->isMailable())->toBeTrue()
+        ->and(inTenant($this->a, fn () => AuditLog::where('action', 'suppression.lifted')->first()->context['previous_reason']))->toBe('unsubscribe');
+
+    // Another tenant's suppression is untouched and unreachable by id.
+    expect(inTenant($this->b, fn () => Suppression::whereKey($otherId)->exists()))->toBeTrue();
+    expect(fn () => Volt::test('pages.audience.suppressions')->call('startLift', $otherId))->toThrow(ModelNotFoundException::class);
+
+    // A platform bounce still blocks even after the tenant block is lifted.
+    $sid = inTenant($this->a, fn () => Suppression::where('email', 'stay@example.com')->value('id'));
+    Volt::test('pages.audience.suppressions')->call('startLift', $sid)->set('liftWhy', 'Mistaken block')->call('lift');
+    expect(PlatformSuppression::where('email', 'stay@example.com')->exists())->toBeTrue()
+        ->and(app(OptOuts::class)->reasonFor('stay@example.com'))->toBe('bounce');
+});

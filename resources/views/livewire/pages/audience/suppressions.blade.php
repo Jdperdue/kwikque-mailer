@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Jobs\ProcessSuppressionImport;
 use App\Models\ImportRun;
+use App\Models\PlatformSuppression;
 use App\Models\Suppression;
 use App\Services\OptOuts;
 use App\Services\SuppressionImporter;
@@ -136,12 +137,43 @@ new #[Layout('layouts.app')] class extends Component
         $this->preview = [];
     }
 
+    public ?int $liftId = null;
+    public string $liftWhy = '';
+
+    public function startLift(int $id): void
+    {
+        Gate::authorize('lift-suppressions');
+        $this->liftId = Suppression::findOrFail($id)->id;
+        $this->liftWhy = '';
+        $this->resetErrorBag();
+    }
+
+    public function cancelLift(): void
+    {
+        $this->reset(['liftId', 'liftWhy']);
+        $this->resetErrorBag();
+    }
+
+    public function lift(OptOuts $optOuts): void
+    {
+        Gate::authorize('lift-suppressions');
+        $this->validate(['liftWhy' => ['required', 'string', 'min:5', 'max:255']]);
+
+        $s = Suppression::findOrFail($this->liftId);
+        $optOuts->lift($s->email, trim($this->liftWhy));
+
+        $this->message = 'Block removed for '.$s->email.'.'
+            .(PlatformSuppression::where('email', $s->email)->exists() ? ' It is still on the platform-wide bounce/complaint list, so mail to it stays blocked.' : '');
+        $this->cancelLift();
+    }
+
     public function with(): array
     {
         return [
             'suppressions' => Suppression::latest('id')->paginate(25),
             'imports' => ImportRun::where('source', 'suppressions')->latest('id')->limit(5)->get(),
             'reasons' => SuppressionImporter::REASONS,
+            'canLift' => Gate::allows('lift-suppressions'),
             'canManage' => Gate::allows('manage-audience'),
             'tz' => app(TenantContext::class)->current()->timezone,
         ];
@@ -236,17 +268,42 @@ new #[Layout('layouts.app')] class extends Component
 
             <div class="bg-white shadow-sm sm:rounded-lg p-6 overflow-x-auto">
                 <table class="w-full text-sm">
-                    <thead class="text-gray-500"><tr><th class="py-2 pe-4 text-start font-medium">Email</th><th class="pe-4 text-start font-medium">Reason</th><th class="pe-4 text-start font-medium">Note</th><th class="text-start font-medium">Added</th></tr></thead>
+                    <thead class="text-gray-500"><tr><th class="py-2 pe-4 text-start font-medium">Email</th><th class="pe-4 text-start font-medium">Reason</th><th class="pe-4 text-start font-medium">Note</th><th class="pe-4 text-start font-medium">Added</th><th></th></tr></thead>
                     <tbody>
                         @forelse ($suppressions as $s)
                             <tr class="border-t" wire:key="sup-{{ $s->id }}">
                                 <td class="py-2 pe-4">{{ $s->email }}</td>
                                 <td class="pe-4">{{ $s->reason }}</td>
                                 <td class="pe-4">{{ $s->note ?? '—' }}</td>
-                                <td>{{ $s->created_at->setTimezone($tz)->format('M j, Y') }}</td>
+                                <td class="pe-4">{{ $s->created_at->setTimezone($tz)->format('M j, Y') }}</td>
+                                <td class="whitespace-nowrap">
+                                    @if ($canLift && $liftId !== $s->id)
+                                        <button wire:click="startLift({{ $s->id }})" class="text-red-600 hover:underline">Remove block</button>
+                                    @endif
+                                </td>
                             </tr>
+                            @if ($canLift && $liftId === $s->id)
+                                <tr class="bg-red-50" wire:key="lift-{{ $s->id }}">
+                                    <td colspan="5" class="p-3">
+                                        <div class="text-sm text-red-900 mb-2">
+                                            Mail to {{ $s->email }} will resume at the next send.
+                                            @if (in_array($s->reason, ['unsubscribe', 'complaint'], true))
+                                                <strong>This person asked not to be mailed ({{ $s->reason }}). Only continue if you have their fresh consent.</strong>
+                                            @endif
+                                        </div>
+                                        <div class="flex flex-wrap items-start gap-3">
+                                            <div>
+                                                <x-text-input wire:model="liftWhy" aria-label="Why is this block being removed?" placeholder="Why is this block being removed?" class="w-96" />
+                                                <x-input-error :messages="$errors->get('liftWhy')" class="mt-1" />
+                                            </div>
+                                            <x-danger-button type="button" wire:click="lift" wire:confirm="Remove the block on {{ $s->email }}? They will be mailed again.">{{ __('Remove block') }}</x-danger-button>
+                                            <button type="button" wire:click="cancelLift" class="text-sm text-gray-600 hover:underline self-center">{{ __('Cancel') }}</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endif
                         @empty
-                            <tr><td colspan="4" class="py-3 text-gray-500">No suppressions.</td></tr>
+                            <tr><td colspan="5" class="py-3 text-gray-500">No suppressions.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
