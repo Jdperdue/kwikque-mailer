@@ -62,7 +62,8 @@ new #[Layout('layouts.app')] class extends Component
                             <th class="pe-4 text-start font-medium">Slug</th>
                             <th class="pe-4 text-start font-medium">Status</th>
                             <th class="pe-4 text-start font-medium">Sending domain</th>
-                            <th class="text-start font-medium">Domain</th>
+                            <th class="pe-4 text-start font-medium">Domain</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -72,7 +73,8 @@ new #[Layout('layouts.app')] class extends Component
                                 <td class="pe-4">{{ $t->slug }}</td>
                                 <td class="pe-4">{{ $t->status }}</td>
                                 <td class="pe-4">{{ $t->mailgun_domain ?? '—' }}</td>
-                                <td>{{ $t->domain_status }}</td>
+                                <td class="pe-4">{{ $t->domain_status }}</td>
+                                <td><a href="{{ route('platform.tenants.members', $t) }}" wire:navigate class="text-indigo-600 hover:underline">Members</a></td>
                             </tr>
                         @endforeach
                     </tbody>

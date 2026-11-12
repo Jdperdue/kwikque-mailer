@@ -22,6 +22,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('super')->prefix('platform')->group(function () {
         Volt::route('tenants', 'pages.platform.tenants')->name('platform.tenants');
+        Volt::route('tenants/{tenant}/members', 'pages.platform.members')->name('platform.tenants.members');
     });
 });
 

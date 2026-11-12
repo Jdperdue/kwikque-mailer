@@ -88,6 +88,15 @@ Bulk opt-outs from a CSV (`email`, optional `reason`, `note`) or one-address-per
   warning. It deletes the tenant suppression and re-enables the recipient row, but never touches
   `platform_suppressions`, so a platform-wide bounce/complaint keeps blocking sends.
 
+### D12. Tenant members
+Platform admins manage who can log in to a tenant from Platform > Tenants > Members (role admin/operator/viewer;
+change role; remove; remove keeps the login). Platform-admin only, including against a tenant admin. A new user
+gets a generated 16-character temporary password shown once on screen (mail is still `MAIL_MAILER=log`, so no
+invite is emailed); the account is pre-verified and the user should change the password under Profile. Re-adding an
+existing user to a second tenant never changes their password. Platform admins already act as Admin in every tenant
+and cannot be added as members. Open: email invitations once real mail is configured; forced password change on
+first login; a "last admin" guard.
+
 ## Open questions for David (do not invent)
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
 - Items from PLAN section 9 (Spectrum, legacy schema, unsubscribe link targets, sending subdomain and DNS owner,
