@@ -111,7 +111,13 @@ the Mailgun API, not SMTP.
   The websocket for live updates is proxied. No existing nginx server block, PHP-FPM, MariaDB or Redis config was changed.
 - Before real users or live sends: set `MAIL_MAILER` and `MAIL_FROM_ADDRESS` (still the placeholder
   hello@example.com) to a real transactional route, and decide whether to keep Mailpit for staging only.
-- Rotating the UI password: update `.env`, regenerate the htpasswd file (`htpasswd -iBc`) and reload nginx.
+- Rotating the UI password: `.env` is NOT read by nginx. Changing `MAILPIT_UI_PASSWORD` there does nothing to the
+  login until the hash is regenerated. Steps: (1) edit `.env`; (2) regenerate the hash without putting the password
+  on a command line, e.g. `set -a; . <(grep '^MAILPIT_UI_' .env); set +a; printf '%s' "$MAILPIT_UI_PASSWORD" |
+  htpasswd -iBc /home/ubuntu/mailpit-install/maillist-mailpit.htpasswd "$MAILPIT_UI_USER"`; (3) `sudo bash
+  /home/ubuntu/mailpit-install/rotate.sh` (copies it to `/etc/nginx/maillist-mailpit.htpasswd`, runs `nginx -t`,
+  reloads nginx); (4) test with curl. `/home/ubuntu/mailpit-install/` holds the install files and scripts and is
+  outside the repo (it contains a password hash); keep it `chmod 700`. Laravel needs no restart for this.
 
 ## Open questions for David (do not invent)
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
