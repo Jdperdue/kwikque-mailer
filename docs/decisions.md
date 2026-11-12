@@ -119,6 +119,26 @@ the Mailgun API, not SMTP.
   reloads nginx); (4) test with curl. `/home/ubuntu/mailpit-install/` holds the install files and scripts and is
   outside the repo (it contains a password hash); keep it `chmod 700`. Laravel needs no restart for this.
 
+### D14. Phase 2a: campaigns, templates, preview, test send
+- Tables `campaigns`, `campaign_groups`, `campaign_items` (sort_order). Status is only `draft` or `scheduled` for
+  now; scheduling stores UTC `scheduled_at` (entered in the tenant time zone). Nothing sends until Phase 3.
+  Scheduled campaigns are locked; unschedule to edit; only drafts delete.
+- Cannot schedule unless: subject, at least one item and group, a future time, and the tenant has a from address and
+  a postal address (compliance: footer address on every message). Domain verification is enforced in 2c/3.
+- `CampaignRenderer` is the single renderer for preview, test send and (Phase 3) real sends: subject, HTML and
+  plain text from one data set. The unsubscribe link is the Mailgun recipient variable
+  `%recipient.unsubscribe_url%` by default; preview and test sends pass an inert `#`. Only http(s) links and images
+  are emitted; all text is escaped; accent colour must be `#rrggbb`. Branding lives in `tenants.branding`
+  (`logo_url`, `accent_color`); a tenant may override the layout with
+  `resources/views/mail/tenants/{slug}/campaign(.text).blade.php`.
+- Test sends go through the app's SMTP (Mailpit for now), subject prefixed `[TEST]`, 20 per user per hour, audited
+  with a hash of the recipient. They do not yet carry List-Unsubscribe headers or a working unsubscribe link:
+  that arrives with signed tokens in 2b (the test send should then use a real token for the test address).
+- Roles: operators and admins manage campaigns (`manage-campaigns`); viewers read and preview. Tenant Settings (from
+  name/address, reply-to, postal address, logo, accent colour) are tenant-admin only (`manage-tenant`); the time zone
+  and sending domain stay platform-admin controlled.
+- Open: a "send test to myself" default, saved test recipients, a rendered-thumbnail in the list.
+
 ## Open questions for David (do not invent)
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
 - Items from PLAN section 9 (Spectrum, legacy schema, unsubscribe link targets, sending subdomain and DNS owner,

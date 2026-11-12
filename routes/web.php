@@ -16,6 +16,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Volt::route('audience/imports/{run}', 'pages.audience.import-show')->name('audience.imports.show');
         Volt::route('audience/suppressions', 'pages.audience.suppressions')->name('audience.suppressions');
         Volt::route('content', 'pages.content.index')->name('content');
+        Volt::route('campaigns', 'pages.campaigns.index')->name('campaigns');
+        Volt::route('campaigns/create', 'pages.campaigns.edit')->name('campaigns.create');
+        Volt::route('campaigns/{campaign}', 'pages.campaigns.edit')->name('campaigns.edit');
+        Volt::route('campaigns/{campaign}/preview', 'pages.campaigns.preview')->name('campaigns.preview');
+        Volt::route('settings', 'pages.settings')->name('settings');
     });
 
     Route::post('tenant/switch', TenantSwitchController::class)->name('tenant.switch');

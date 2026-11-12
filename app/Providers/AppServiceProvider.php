@@ -33,6 +33,20 @@ class AppServiceProvider extends ServiceProvider
             return $context->has() && ($user->roleIn($context->current())?->atLeast(TenantRole::Operator) ?? false);
         });
 
+        // Campaigns: operators and admins build and schedule; viewers read.
+        Gate::define('manage-campaigns', function (User $user): bool {
+            $context = app(TenantContext::class);
+
+            return $context->has() && ($user->roleIn($context->current())?->atLeast(TenantRole::Operator) ?? false);
+        });
+
+        // Tenant settings (from address, postal address, branding): tenant admins.
+        Gate::define('manage-tenant', function (User $user): bool {
+            $context = app(TenantContext::class);
+
+            return $context->has() && ($user->roleIn($context->current())?->atLeast(TenantRole::Admin) ?? false);
+        });
+
         // Lifting an opt-out re-enables mail to someone who was blocked: tenant admins only.
         Gate::define('lift-suppressions', function (User $user): bool {
             $context = app(TenantContext::class);

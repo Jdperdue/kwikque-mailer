@@ -40,6 +40,14 @@ new class extends Component
                         <x-nav-link :href="route('content')" :active="request()->routeIs('content')" wire:navigate>
                             {{ __('Content') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('campaigns')" :active="request()->routeIs('campaigns*')" wire:navigate>
+                            {{ __('Campaigns') }}
+                        </x-nav-link>
+                        @can('manage-tenant')
+                            <x-nav-link :href="route('settings')" :active="request()->routeIs('settings')" wire:navigate>
+                                {{ __('Settings') }}
+                            </x-nav-link>
+                        @endcan
                     @endif
                     @if (auth()->user()->is_super_admin)
                         <x-nav-link :href="route('platform.tenants')" :active="request()->routeIs('platform.tenants')" wire:navigate>
