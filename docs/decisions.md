@@ -97,6 +97,22 @@ existing user to a second tenant never changes their password. Platform admins a
 and cannot be added as members. Open: email invitations once real mail is configured; forced password change on
 first login; a "last admin" guard.
 
+### D13. Mailpit dev mail catcher (2026-11-12)
+Laravel SMTP (`MAIL_MAILER=smtp`, `127.0.0.1:1025`, no auth or encryption) goes to Mailpit, so nothing the app
+sends by SMTP (password resets, later double opt-in) reaches a real address. Campaign mail is unaffected: it goes via
+the Mailgun API, not SMTP.
+- Mailpit v1.33.1, official binary at `/usr/local/bin/mailpit` (SHA-256 checked against the release digest), run as
+  `maillist-mailpit.service` under the unprivileged `maillist-mailpit` user. SMTP and UI listen on localhost only
+  (1025, 8025). Messages live in SQLite under `/var/lib/maillist-mailpit/`, capped at 5,000 (oldest pruned).
+- UI at https://mailpit.kwikque.com via our own nginx file `/etc/nginx/sites-available/maillist-mailpit.conf`
+  (symlinked in sites-enabled), Let's Encrypt cert from certbot, proxied by Cloudflare (SSL mode Full strict),
+  HTTP basic auth always on: the inbox holds password-reset links. Credentials: `MAILPIT_UI_USER` and
+  `MAILPIT_UI_PASSWORD` in `.env`; the nginx hash is `/etc/nginx/maillist-mailpit.htpasswd` (root:www-data 640).
+  The websocket for live updates is proxied. No existing nginx server block, PHP-FPM, MariaDB or Redis config was changed.
+- Before real users or live sends: set `MAIL_MAILER` and `MAIL_FROM_ADDRESS` (still the placeholder
+  hello@example.com) to a real transactional route, and decide whether to keep Mailpit for staging only.
+- Rotating the UI password: update `.env`, regenerate the htpasswd file (`htpasswd -iBc`) and reload nginx.
+
 ## Open questions for David (do not invent)
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
 - Items from PLAN section 9 (Spectrum, legacy schema, unsubscribe link targets, sending subdomain and DNS owner,
