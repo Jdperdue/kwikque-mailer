@@ -61,6 +61,19 @@ Operators can opt an address out but cannot re-subscribe one here: re-subscripti
   `first_name`+`last_name`, `external_id`. Max 10 MB. Errors are capped at 500 rows in the report; counts are exact.
 - `LegacyDbSource` is not built: waiting for David's legacy schema/queries (PLAN section 9).
 
+### D10. Legacy import files (default format)
+Four CSVs exported from the legacy app are the default import format, one file per group:
+`active_bidders_with_interests.csv` -> Bidders (`bidder_id,email,name`), `inactive_bidders_with_interests.csv` ->
+Bidders - Inactive (`bidder_id,email,name`), `clients_with_interests.csv` -> Clients (`client_id,email,name`),
+`subscribers_with_interests.csv` -> Subscribers (`email_id,email`, no name).
+- The legacy app had no subscribe flag: having interests meant subscribed. Interests are not exported and not needed.
+  **Every address in these files is treated as currently subscribed** (David, 2026-11-12). Consent date is unknown
+  (`consent_source = import:csv`, no `consent_at`). Existing suppressions/unsubscribes still win (D8).
+- Legacy ids are stored in `recipient_legacy_ids` (tenant_id, recipient_id, kind = bidder|client|email, legacy_id),
+  one per kind per recipient, because the three legacy id spaces overlap. A person in two files holds both ids.
+  A re-import with a different id for the same kind replaces it. Matching is always by email, never by legacy id.
+- Cross-file overlap is expected (about 97 addresses); a recipient simply belongs to several groups.
+
 ## Open questions for David (do not invent)
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
 - Items from PLAN section 9 (Spectrum, legacy schema, unsubscribe link targets, sending subdomain and DNS owner,

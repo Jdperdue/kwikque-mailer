@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Sources;
 
 use App\Models\AudienceGroup;
+use App\Models\RecipientLegacyId;
 use App\Models\Tenant;
 use App\Support\Audience\RecipientData;
 use InvalidArgumentException;
@@ -44,6 +45,12 @@ class CsvImportSource implements AudienceSource
             'last' => $this->find($header, self::LAST),
             'external_id' => $this->find($header, self::EXTERNAL_ID),
         ];
+        $legacy = [];
+        foreach (RecipientLegacyId::KINDS as $column => $kind) {
+            if (($i = $this->find($header, [$column])) !== null) {
+                $legacy[$kind] = $i;
+            }
+        }
 
         if ($map['email'] === null) {
             throw new InvalidArgumentException('The file has no "email" column.');
@@ -65,6 +72,7 @@ class CsvImportSource implements AudienceSource
                 name: $name,
                 externalId: $this->cell($values, $map['external_id']),
                 consentSource: 'import:csv',
+                legacyIds: array_filter(array_map(fn (int $i) => $this->cell($values, $i), $legacy), fn ($v) => $v !== null),
             );
         }
     }

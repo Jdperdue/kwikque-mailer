@@ -8,6 +8,7 @@ use App\Models\Concerns\BelongsToTenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Recipient extends Model
 {
@@ -31,6 +32,11 @@ class Recipient extends Model
         return $this->belongsToMany(AudienceGroup::class, 'recipient_group')
             ->withPivotValue('tenant_id', app(TenantContext::class)->requireId('relate recipient groups'))
             ->withTimestamps();
+    }
+
+    public function legacyIds(): HasMany
+    {
+        return $this->hasMany(RecipientLegacyId::class);
     }
 
     public function scopeMailable($query)

@@ -8,6 +8,7 @@ use App\Models\AudienceGroup;
 use App\Models\ImportRun;
 use App\Models\PlatformSuppression;
 use App\Models\Recipient;
+use App\Models\RecipientLegacyId;
 use App\Models\Suppression;
 use App\Models\Tenant;
 use App\Support\Audience\EmailAddress;
@@ -155,6 +156,10 @@ class RecipientImporter
                 $counts['protected']++;
             }
 
+            if ($data->legacyIds !== [] && $this->syncLegacyIds($recipient, $data->legacyIds, $isNew)) {
+                $fieldsChanged = true;
+            }
+
             $attached = false;
             if (! isset($inGroup[$recipient->id])) {
                 $group->recipients()->attach($recipient->id);
@@ -170,6 +175,23 @@ class RecipientImporter
         if ($touchedIds !== []) {
             Recipient::whereIn('id', $touchedIds)->toBase()->update(['synced_at' => now()]);
         }
+    }
+
+    /** Upserts legacy ids (one per kind); returns true if anything was added or changed. */
+    private function syncLegacyIds(Recipient $recipient, array $ids, bool $isNew): bool
+    {
+        $current = $isNew ? collect() : RecipientLegacyId::where('recipient_id', $recipient->id)->pluck('legacy_id', 'kind');
+        $changed = false;
+
+        foreach ($ids as $kind => $legacyId) {
+            if (($current[$kind] ?? null) === $legacyId) {
+                continue;
+            }
+            RecipientLegacyId::updateOrCreate(['recipient_id' => $recipient->id, 'kind' => $kind], ['legacy_id' => $legacyId]);
+            $changed = true;
+        }
+
+        return $changed;
     }
 
     private function addError(array &$errors, int $row, ?string $email, string $reason): void

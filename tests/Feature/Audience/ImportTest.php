@@ -7,6 +7,7 @@ use App\Models\AudienceGroup;
 use App\Models\ImportRun;
 use App\Models\PlatformSuppression;
 use App\Models\Recipient;
+use App\Models\RecipientLegacyId;
 use App\Models\Suppression;
 use App\Models\Tenant;
 use App\Services\OptOuts;
@@ -214,4 +215,45 @@ it('does not let tenant B see or reach tenant A import history or groups', funct
     expect(inTenant($this->b, fn () => ImportRun::find($run->id)))->toBeNull()
         ->and(inTenant($this->b, fn () => ImportRun::count()))->toBe(0)
         ->and(inTenant($this->b, fn () => AudienceGroup::count()))->toBe(0);
+});
+
+it('stores legacy bidder, client and email ids per kind without them colliding', function () {
+    importCsv($this->a, "bidder_id,email,name\n42,both@example.com,Both\n43,bid@example.com,Bid\n", groupFor($this->a, 'Bidders'));
+    importCsv($this->a, "client_id,email,name\n42,both@example.com,\n7,cl@example.com,Cl\n", groupFor($this->a, 'Clients'));
+    $run = importCsv($this->a, "email_id,email\n42,sub@example.com\n", groupFor($this->a, 'Subscribers'));
+
+    expect($run->created_count)->toBe(1);
+    $ids = inTenant($this->a, fn () => Recipient::with('legacyIds')->where('email', 'both@example.com')->first()->legacyIds->pluck('legacy_id', 'kind')->all());
+    expect($ids)->toBe(['bidder' => '42', 'client' => '42'])
+        ->and(inTenant($this->a, fn () => Recipient::where('email', 'sub@example.com')->first()->legacyIds->pluck('legacy_id', 'kind')->all()))->toBe(['email' => '42']);
+});
+
+it('keeps legacy id imports idempotent and updates a changed id', function () {
+    $csv = "bidder_id,email,name\n42,x@example.com,X\n";
+    importCsv($this->a, $csv);
+    $again = importCsv($this->a, $csv);
+    expect($again->created_count)->toBe(0)->and($again->updated_count)->toBe(0)->and($again->unchanged_count)->toBe(1);
+
+    $changed = importCsv($this->a, "bidder_id,email,name\n99,x@example.com,X\n");
+    expect($changed->updated_count)->toBe(1)
+        ->and(inTenant($this->a, fn () => RecipientLegacyId::count()))->toBe(1)
+        ->and(inTenant($this->a, fn () => RecipientLegacyId::first()->legacy_id))->toBe('99');
+});
+
+it('scopes legacy ids to the tenant', function () {
+    importCsv($this->a, "bidder_id,email\n42,x@example.com\n");
+    importCsv($this->b, "bidder_id,email\n42,x@example.com\n");
+
+    expect(inTenant($this->a, fn () => RecipientLegacyId::count()))->toBe(1)
+        ->and(inTenant($this->b, fn () => RecipientLegacyId::count()))->toBe(1)
+        ->and(inTenant($this->a, fn () => RecipientLegacyId::first()->tenant_id))->toBe($this->a->id);
+});
+
+it('does not re-subscribe an opted-out address when its legacy file is re-imported', function () {
+    importCsv($this->a, "bidder_id,email\n42,x@example.com\n");
+    inTenant($this->a, fn () => app(OptOuts::class)->suppress('x@example.com', 'unsubscribe', 'test'));
+    $run = importCsv($this->a, "bidder_id,email\n42,x@example.com\n");
+
+    expect($run->protected_count)->toBe(1)
+        ->and(inTenant($this->a, fn () => Recipient::where('email', 'x@example.com')->first()->isOptedOut()))->toBeTrue();
 });

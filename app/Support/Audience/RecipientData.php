@@ -13,5 +13,7 @@ final class RecipientData
         public readonly ?string $name = null,
         public readonly ?string $externalId = null,
         public readonly ?string $consentSource = null,
+        /** @var array<string, string> legacy kind (bidder|client|email) => id */
+        public readonly array $legacyIds = [],
     ) {}
 }

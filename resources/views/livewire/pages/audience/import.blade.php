@@ -74,7 +74,7 @@ new #[Layout('layouts.app')] class extends Component
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
             @if ($canManage)
                 <form wire:submit="upload" class="bg-white shadow-sm sm:rounded-lg p-6 grid gap-3 max-w-xl">
-                    <p class="text-sm text-gray-600">CSV with an <code>email</code> column. Optional: <code>name</code> (or <code>first_name</code> and <code>last_name</code>) and <code>external_id</code>. Re-importing a file is safe. Anyone who has unsubscribed or been suppressed stays opted out.</p>
+                    <p class="text-sm text-gray-600">CSV with an <code>email</code> column. Optional: <code>name</code> (or <code>first_name</code> and <code>last_name</code>) and <code>external_id</code>. Legacy exports are recognised too: <code>bidder_id</code>, <code>client_id</code> or <code>email_id</code> is stored as the legacy id. Re-importing a file is safe. Anyone who has unsubscribed or been suppressed stays opted out.</p>
                     <div>
                         <x-input-label for="file" value="CSV file (max 10 MB)" />
                         <input type="file" wire:model="file" id="file" accept=".csv,.txt,text/csv" class="block mt-1 w-full text-sm" />
