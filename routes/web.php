@@ -9,7 +9,7 @@ use Livewire\Volt\Volt;
 Route::redirect('/', '/login');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::view('dashboard', 'dashboard')->middleware('tenant.required')->name('dashboard');
+    Volt::route('dashboard', 'pages.dashboard')->middleware('tenant.required')->name('dashboard');
     Route::middleware('tenant.required')->group(function () {
         Volt::route('audience', 'pages.audience.index')->name('audience');
         Volt::route('audience/import', 'pages.audience.import')->name('audience.import');
