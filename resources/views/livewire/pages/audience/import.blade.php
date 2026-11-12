@@ -50,7 +50,7 @@ new #[Layout('layouts.app')] class extends Component
 
     public function with(): array
     {
-        $runs = ImportRun::with('group')->latest('id')->limit(25)->get();
+        $runs = ImportRun::with('group')->where('source', '!=', 'suppressions')->latest('id')->limit(25)->get();
 
         return [
             'groups' => AudienceGroup::orderBy('name')->get(),

@@ -74,6 +74,17 @@ Bidders - Inactive (`bidder_id,email,name`), `clients_with_interests.csv` -> Cli
   A re-import with a different id for the same kind replaces it. Matching is always by email, never by legacy id.
 - Cross-file overlap is expected (about 97 addresses); a recipient simply belongs to several groups.
 
+### D11. Suppression import
+Bulk opt-outs from a CSV (`email`, optional `reason`, `note`) or one-address-per-line file, on the Suppressions page.
+- Strictly tenant-scoped (David, 2026-11-12): writes only this tenant's `suppressions`; never `platform_suppressions`,
+  which stays system-written from provider events. A person in two tenants is blocked only in the one that imported.
+- Double confirmation: upload shows a preview (new / already suppressed / invalid / duplicate / mailable people who
+  will stop receiving mail) and writes nothing; applying needs the typed word SUPPRESS plus a browser confirm dialog.
+  The previewed file and reason are server-locked, so the browser cannot swap them between preview and apply.
+- Applied by a queued `ProcessSuppressionImport` (tenant-restored), recorded as an `import_runs` row with
+  `source = suppressions` and `options.reason`. Existing suppressions are never changed. Audited.
+- Still open: no way to lift a suppression in the UI (see D8).
+
 ## Open questions for David (do not invent)
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
 - Items from PLAN section 9 (Spectrum, legacy schema, unsubscribe link targets, sending subdomain and DNS owner,

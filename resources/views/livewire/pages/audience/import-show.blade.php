@@ -22,7 +22,7 @@ new #[Layout('layouts.app')] class extends Component
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ __('Import') }} #{{ $run->id }}</h2>
-            <a href="{{ route('audience.import') }}" wire:navigate class="text-sm text-indigo-600 hover:underline">{{ __('Back to imports') }}</a>
+            <a href="{{ $run->source === 'suppressions' ? route('audience.suppressions') : route('audience.import') }}" wire:navigate class="text-sm text-indigo-600 hover:underline">{{ $run->source === 'suppressions' ? __('Back to suppressions') : __('Back to imports') }}</a>
         </div>
     </x-slot>
 
@@ -31,6 +31,7 @@ new #[Layout('layouts.app')] class extends Component
             <div class="bg-white shadow-sm sm:rounded-lg p-6 text-sm grid gap-1">
                 <div><span class="text-gray-500">File:</span> {{ $run->filename ?? $run->source }}</div>
                 <div><span class="text-gray-500">Status:</span> {{ $run->status }}</div>
+                @if ($run->source === 'suppressions')<div><span class="text-gray-500">Suppression import, reason:</span> {{ $run->options['reason'] ?? 'manual' }} · created = newly suppressed, updated = mailable people switched off, unchanged = already suppressed</div>@endif
                 @if ($run->failure_message)<div class="text-red-700">{{ $run->failure_message }}</div>@endif
                 <div>Rows {{ $run->total_rows }} · created {{ $run->created_count }} · updated {{ $run->updated_count }} · unchanged {{ $run->unchanged_count }} · invalid {{ $run->invalid_count }} · duplicate {{ $run->duplicate_count }} · kept opted out {{ $run->protected_count }}</div>
             </div>

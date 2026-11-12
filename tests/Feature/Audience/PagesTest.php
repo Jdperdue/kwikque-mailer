@@ -4,17 +4,22 @@ declare(strict_types=1);
 
 use App\Enums\TenantRole;
 use App\Http\Middleware\ResolveTenant;
+use App\Jobs\ProcessSuppressionImport;
 use App\Models\AudienceGroup;
 use App\Models\AuditLog;
 use App\Models\ContentItem;
 use App\Models\ImportRun;
+use App\Models\PlatformSuppression;
 use App\Models\Recipient;
 use App\Models\Suppression;
 use App\Models\TenantSource;
 use App\Models\User;
+use App\Services\OptOuts;
+use App\Services\SuppressionImporter;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Volt\Volt;
@@ -273,4 +278,87 @@ it('shows the group summary on the dashboard and no longer on the audience page'
 
     $this->actingAs($this->viewer)->get(route('dashboard'))->assertOk()->assertSee('Bidders')->assertSee('Mailable (unique)');
     $this->actingAs($this->viewer)->get(route('audience'))->assertOk()->assertSee('one@example.com')->assertDontSee('Mailable = subscribed');
+});
+
+function supFile(string $content): UploadedFile
+{
+    return UploadedFile::fake()->createWithContent('opt-outs.csv', $content);
+}
+
+it('previews a suppression file without writing anything, then needs typed confirmation', function () {
+    Storage::fake('local');
+    Queue::fake();
+    actingInTenant($this->operator, $this->a);
+    inTenant($this->a, fn () => Recipient::create(['email' => 'keep@example.com']));
+    inTenant($this->a, fn () => Recipient::create(['email' => 'gone@example.com']));
+
+    $c = Volt::test('pages.audience.suppressions')
+        ->set('file', supFile("email\ngone@example.com\nnew@example.com\nbad-address\nGONE@example.com\n"))
+        ->set('reason', 'unsubscribe')
+        ->call('previewImport')->assertHasNoErrors();
+
+    expect($c->get('preview'))->toMatchArray(['total' => 4, 'new' => 2, 'invalid' => 1, 'duplicate' => 1, 'deactivated' => 1, 'existing' => 0])
+        ->and(inTenant($this->a, fn () => Suppression::count()))->toBe(0);
+
+    // Without the typed word nothing is queued.
+    $c->set('confirmText', 'yes')->call('applyImport')->assertHasErrors('confirmText');
+    Queue::assertNothingPushed();
+    expect(inTenant($this->a, fn () => ImportRun::count()))->toBe(0);
+
+    $c->set('confirmText', 'SUPPRESS')->call('applyImport')->assertHasNoErrors();
+    Queue::assertPushed(ProcessSuppressionImport::class);
+    expect(inTenant($this->a, fn () => ImportRun::first()->options))->toBe(['reason' => 'unsubscribe']);
+});
+
+it('applies a suppression import to this tenant only and never touches the platform list', function () {
+    $mk = fn ($t) => inTenant($t, fn () => Recipient::create(['email' => 'both@example.com']));
+    $mk($this->a);
+    $mk($this->b);
+    inTenant($this->a, fn () => app(OptOuts::class)->suppress('old@example.com', 'complaint'));
+
+    $path = tempnam(sys_get_temp_dir(), 'sup');
+    file_put_contents($path, "both@example.com\nold@example.com\nplain@example.com\n");
+    inTenant($this->a, function () use ($path) {
+        $run = ImportRun::create(['source' => 'suppressions', 'options' => ['reason' => 'manual']]);
+        app(SuppressionImporter::class)->apply($run, $path, 'manual');
+        $run->refresh();
+        expect($run->status)->toBe('completed')->and($run->created_count)->toBe(2)->and($run->updated_count)->toBe(1)->and($run->unchanged_count)->toBe(1);
+    });
+    @unlink($path);
+
+    expect(inTenant($this->a, fn () => Recipient::where('email', 'both@example.com')->first()->isOptedOut()))->toBeTrue()
+        ->and(inTenant($this->a, fn () => Suppression::where('email', 'old@example.com')->value('reason')))->toBe('complaint')
+        ->and(inTenant($this->b, fn () => Recipient::where('email', 'both@example.com')->first()->isOptedOut()))->toBeFalse()
+        ->and(inTenant($this->b, fn () => Suppression::count()))->toBe(0)
+        ->and(PlatformSuppression::count())->toBe(0);
+});
+
+it('reads per-row reason and note columns and rejects unknown reasons or a missing email column', function () {
+    Storage::fake('local');
+    actingInTenant($this->operator, $this->a);
+
+    $c = Volt::test('pages.audience.suppressions')
+        ->set('file', supFile("Email,Reason,Note\na@example.com,bounce,hard\nb@example.com,whatever,\nc@example.com,,\n"))
+        ->set('reason', 'manual')->call('previewImport');
+    expect($c->get('preview'))->toMatchArray(['new' => 2, 'invalid' => 1]);
+
+    Volt::test('pages.audience.suppressions')
+        ->set('file', supFile("mail,name\nx@example.com,X\n"))->set('reason', 'manual')
+        ->call('previewImport')->assertHasErrors('file');
+});
+
+it('stops viewers importing suppressions and keeps suppression runs off the recipient import page', function () {
+    Storage::fake('local');
+    actingInTenant($this->viewer, $this->a);
+    Volt::test('pages.audience.suppressions')->set('file', supFile("a@example.com\n"))->set('reason', 'manual')->call('previewImport')->assertForbidden();
+
+    inTenant($this->a, fn () => ImportRun::create(['source' => 'suppressions', 'filename' => 'hidden-sup.csv']));
+    $this->actingAs($this->viewer)->get(route('audience.import'))->assertOk()->assertDontSee('hidden-sup.csv');
+});
+
+it('reports an unreadable or empty suppression file instead of failing', function () {
+    Storage::fake('local');
+    actingInTenant($this->operator, $this->a);
+
+    Volt::test('pages.audience.suppressions')->set('file', supFile(''))->set('reason', 'manual')->call('previewImport')->assertHasErrors('file');
 });

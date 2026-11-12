@@ -18,6 +18,7 @@ class ImportRun extends Model
     {
         return [
             'errors' => 'array',
+            'options' => 'array',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];
