@@ -231,3 +231,39 @@ it('runs the tenant middleware on Livewire update requests (so components get te
     expect($route)->not->toBeNull();
     expect(app('router')->gatherRouteMiddleware($route))->toContain(ResolveTenant::class);
 });
+
+it('lets an operator add, rename and delete groups, scoped to the tenant', function () {
+    actingInTenant($this->operator, $this->a);
+
+    Volt::test('pages.audience.index')
+        ->set('groupName', ' Bidders - Inactive ')->call('addGroup')->assertHasNoErrors()
+        ->set('groupName', 'bidders - inactive')->call('addGroup')->assertHasErrors('groupName')
+        ->set('groupName', '---')->call('addGroup')->assertHasErrors('groupName');
+
+    $g = inTenant($this->a, fn () => AudienceGroup::where('slug', 'bidders-inactive')->firstOrFail());
+    expect($g->name)->toBe('Bidders - Inactive');
+
+    Volt::test('pages.audience.index')
+        ->call('startRenameGroup', $g->id)->set('renameGroupName', 'Lapsed Bidders')->call('saveGroup')->assertHasNoErrors();
+    expect($g->fresh()->name)->toBe('Lapsed Bidders')->and($g->fresh()->slug)->toBe('bidders-inactive');
+
+    // Another tenant can use the same name; a non-empty group cannot be deleted.
+    inTenant($this->b, fn () => AudienceGroup::create(['name' => 'Lapsed Bidders', 'slug' => 'bidders-inactive']));
+    Volt::test('pages.audience.index')->set('newEmail', 'x@example.com')->set('newGroup', (string) $g->id)->call('addRecipient')
+        ->call('deleteGroup', $g->id)->assertHasErrors('groupDelete');
+    expect(inTenant($this->a, fn () => AudienceGroup::whereKey($g->id)->exists()))->toBeTrue();
+
+    $empty = inTenant($this->a, fn () => AudienceGroup::create(['name' => 'Temp', 'slug' => 'temp']));
+    Volt::test('pages.audience.index')->call('deleteGroup', $empty->id);
+    expect(inTenant($this->a, fn () => AudienceGroup::whereKey($empty->id)->exists()))->toBeFalse();
+
+    // Cannot touch another tenant's group.
+    $other = inTenant($this->b, fn () => AudienceGroup::first());
+    expect(fn () => Volt::test('pages.audience.index')->call('deleteGroup', $other->id))->toThrow(ModelNotFoundException::class);
+});
+
+it('stops viewers managing groups', function () {
+    actingInTenant($this->viewer, $this->a);
+    Volt::test('pages.audience.index')->set('groupName', 'Nope')->call('addGroup')->assertForbidden();
+    expect(inTenant($this->a, fn () => AudienceGroup::count()))->toBe(1);
+});
