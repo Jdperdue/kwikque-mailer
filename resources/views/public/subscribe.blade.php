@@ -1,7 +1,7 @@
 <x-layouts.public :tenant="$tenant" title="Subscribe">
 @if ($sent)
     <h1>Check your email</h1>
-    <p>If that address can be subscribed, we've sent a confirmation link. You'll be subscribed once you click it.</p>
+    <p>We've sent an email to that address. If it isn't subscribed yet, it contains a confirmation link, and you'll be subscribed once you click it.</p>
 @else
     <h1>Subscribe to {{ $tenant->name }}</h1>
     <form method="POST" action="{{ route('public.subscribe.do', $tenant->slug) }}">@csrf

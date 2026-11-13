@@ -164,6 +164,14 @@ the Mailgun API, not SMTP.
   answered; no link to the preferences page is in campaign footers yet; no embeddable-form snippet yet (the `/s/{slug}`
   form posts same-origin only); tenant admin UI for the public-group toggle is on the dashboard group table.
 
+### D16. Already-subscribed feedback by email only
+- The subscribe page still answers identically for every address (no list-membership leak). When the address is
+  already subscribed, `AlreadySubscribed` is emailed to it instead of a confirmation: says they are already
+  subscribed and links to their signed preferences and unsubscribe pages (tenant-scoped tokens, tenant name and postal
+  address in the footer).
+- The 3-per-hour per-address limit now covers both mail types, so the form cannot be used to mail-bomb a subscriber.
+- Page wording changed to "We've sent an email to that address. If it isn't subscribed yet, it contains a confirmation link".
+
 ## Open questions for David (do not invent)
 - ADMIN_PASSWORD must be put in `.env` by David before `php artisan db:seed`.
 - Items from PLAN section 9 (Spectrum, legacy schema, unsubscribe link targets, sending subdomain and DNS owner,

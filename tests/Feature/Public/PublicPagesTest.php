@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Mail\AlreadySubscribed;
+use App\Mail\ConfirmSubscription;
 use App\Models\AudienceGroup;
 use App\Models\PlatformSuppression;
 use App\Models\Recipient;
@@ -123,17 +125,43 @@ it('rejects expired confirm tokens', function () {
     expect(inTenant($this->a, fn () => Recipient::find($r->id)->subscribed))->toBeFalse();
 });
 
-it('gives the same answer and sends nothing for suppressed or already-subscribed addresses', function () {
+it('gives the same answer and sends nothing for suppressed addresses', function () {
     Mail::fake();
     inTenant($this->a, fn () => Suppression::create(['email' => 'blocked@example.com', 'reason' => 'complaint']));
     PlatformSuppression::create(['email' => 'bounced@example.com', 'reason' => 'bounce']);
 
-    foreach (['blocked@example.com', 'bounced@example.com', 'same@example.com'] as $email) {
+    foreach (['blocked@example.com', 'bounced@example.com'] as $email) {
         $this->post('/s/tenant-a', ['email' => $email])->assertOk()->assertSee('Check your email');
     }
 
     Mail::assertNothingSent();
     expect(inTenant($this->a, fn () => Recipient::where('email', 'blocked@example.com')->exists()))->toBeFalse();
+});
+
+it('tells an already-subscribed address by email only, with the same page answer and only that tenant\'s links', function () {
+    Mail::fake();
+
+    $new = $this->post('/s/tenant-a', ['email' => 'fresh@example.com'])->assertOk()->getContent();
+    $existing = $this->post('/s/tenant-a', ['email' => ' Same@Example.com '])->assertOk()->getContent();
+    expect(preg_replace('/name="_token" value="[^"]+"/', '', $existing))->toBe(preg_replace('/name="_token" value="[^"]+"/', '', $new));
+
+    Mail::assertSent(AlreadySubscribed::class, 1);
+    Mail::assertSent(AlreadySubscribed::class, fn ($m) => $m->hasTo('same@example.com') && str_contains($m->render(), '/p/') && str_contains($m->render(), 'Tenant A'));
+    Mail::assertSent(ConfirmSubscription::class, 1);
+    Mail::assertSent(ConfirmSubscription::class, fn ($m) => $m->hasTo('fresh@example.com'));
+
+    // Same address in tenant B is also subscribed there: its mail names tenant B and carries a tenant-B token.
+    $this->post('/s/tenant-b', ['email' => 'same@example.com'])->assertOk();
+    Mail::assertSent(AlreadySubscribed::class, 2);
+    Mail::assertSent(AlreadySubscribed::class, fn ($m) => str_contains($m->render(), 'Tenant B') && ! str_contains($m->render(), 'Tenant A'));
+});
+
+it('rate-limits already-subscribed mails per address', function () {
+    Mail::fake();
+    foreach (range(1, 5) as $i) {
+        $this->post('/s/tenant-a', ['email' => 'same@example.com'])->assertOk();
+    }
+    Mail::assertSent(AlreadySubscribed::class, 3);
 });
 
 it('lets an unsubscribed person re-subscribe only by confirming, and never overrides a block', function () {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Mail\AlreadySubscribed;
 use App\Mail\ConfirmSubscription;
 use App\Models\AudienceGroup;
 use App\Models\PlatformSuppression;
@@ -12,6 +13,7 @@ use App\Models\Recipient;
 use App\Models\Suppression;
 use App\Models\Tenant;
 use App\Services\OptOuts;
+use App\Services\PublicLinks;
 use App\Services\TokenService;
 use App\Support\Audit;
 use App\Support\Tenancy\TenantContext;
@@ -106,11 +108,17 @@ class PublicPagesController extends Controller
         }
 
         $existing = Recipient::where('email', $email)->first();
-        if ($existing !== null && $existing->isMailable()) {
-            return; // already subscribed; sending a confirmation would only be a nuisance vector
+
+        // One mail per address per hour window (3), whichever kind we send.
+        if (! RateLimiter::attempt('subscribe-confirm:'.$tenant->getKey().':'.hash('sha256', $email), 3, fn () => true, 3600)) {
+            return;
         }
 
-        if (! RateLimiter::attempt('subscribe-confirm:'.$tenant->getKey().':'.hash('sha256', $email), 3, fn () => true, 3600)) {
+        if ($existing !== null && $existing->isMailable()) {
+            // The page answers the same for everyone; the real answer goes only to the mailbox owner.
+            $links = app(PublicLinks::class);
+            Mail::to($existing->email)->send(new AlreadySubscribed($tenant, $links->preferencesUrl($existing), $links->unsubscribeUrl($existing)));
+
             return;
         }
 
